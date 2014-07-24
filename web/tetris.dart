@@ -1,20 +1,31 @@
 import 'dart:html';
 import 'dart:math';
+import 'dart:convert';
 
 const String BACKGROUND_COLOR = "white";
 const int BLOCK_GAP = 2;
-const num STEP_TIME = 400;
+final List<num> STEP_TIMES = [500,400,300,200,150,100,75,50];
 var rng = new Random();
 
-final List<String> COLORS = ["rgba(159,187,159,0.5)", "rgba(90,196,255,0.5)", "rgba(255,178,36,0.5)", "rgba(148,103,148,0.5)", "rgba(194,66,66,0.5)"];
+final List<String> COLORS = ["rgba(159,187,159,0.5)", "rgba(90,196,255,0.5)",
+                             "rgba(255,178,36,0.5)", "rgba(148,103,148,0.5)",
+                             "rgba(194,66,66,0.5)", "rgba(60,160,60,0.5)",
+                             "rgba(199,187,139,0.5)"];
 const int LONG_INDEX = 1;
 final List<List<List<int>>> SHAPES = [[[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], // long: index 1
-  [[1, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]], [[0, 1, 1, 0], [1, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], [[1, 1, 0, 0], [0, 1, 1, 0], [0, 0, 0, 0], [0, 0, 0, 0]], [[1, 0, 0, 0], [1, 0, 0, 0], [1, 1, 0, 0], [0, 0, 0, 0]], [[0, 1, 0, 0], [0, 1, 0, 0], [1, 1, 0, 0], [0, 0, 0, 0]], [[1, 1, 1, 0], [0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]];
+                                      [[1, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0]],
+                                      [[0, 1, 1, 0], [1, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+                                      [[1, 1, 0, 0], [0, 1, 1, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+                                      [[1, 0, 0, 0], [1, 0, 0, 0], [1, 1, 0, 0], [0, 0, 0, 0]],
+                                      [[0, 1, 0, 0], [0, 1, 0, 0], [1, 1, 0, 0], [0, 0, 0, 0]],
+                                      [[1, 1, 1, 0], [0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]];
 
 void main() {
   CanvasElement canvas = querySelector("#area");
   CanvasElement showNextCanvas = querySelector("#show-next");
 
+  AnchorElement logLink = querySelector(".download.data");
+  
   int numBlocksX = 11;
 
   Tetris t = new Tetris(canvas, showNextCanvas, numBlocksX);
@@ -25,6 +36,11 @@ void main() {
       t.start();
   });
   
+  logLink.onClick.listen((e) {
+      List<Map<String, String>> logs = t.getLogs();
+      logLink.href = "data:text;charset=utf-8," + JSON.encode(logs);
+  });
+  
   t.start();
   t.stop();
 }
@@ -32,6 +48,8 @@ void main() {
 class Tetris {
   CanvasElement canvas;
   CanvasElement showNextCanvas;
+  
+  List<Map<String, String>> logs;
 
   bool gameOver = false;
 
@@ -40,6 +58,11 @@ class Tetris {
 
   var scoreBox = querySelector("#score-box");
   var heightBox = querySelector("#height-box");
+  
+
+  InputElement difficultyIn = querySelector("#diff-input");
+  Element difficultyShow = querySelector("#difficulty");
+  num STEP_TIME;
 
   int turn = 0;
 
@@ -74,6 +97,22 @@ class Tetris {
     showNextCanvas = sn;
     numBricksX = nbx;
     blocksQueue = new List<Block>();
+    logs = new List<Map<String, String>>();
+    initDiffSlider();
+    difficultyIn.onInput.listen(updateDiff);
+  }
+  
+  void updateDiff(Event e) {
+    num diff = num.parse(difficultyIn.value)-1;
+    difficultyShow.text = difficultyIn.value;
+    STEP_TIME = STEP_TIMES[diff];
+  }
+
+  void initDiffSlider() {
+    difficultyIn.max = (STEP_TIMES.length).toString();
+    difficultyIn.value = "1";
+    difficultyShow.text = difficultyIn.value;
+    STEP_TIME = STEP_TIMES[int.parse(difficultyIn.value)-1];
   }
 
   // Converts game position point to
@@ -237,16 +276,19 @@ class Tetris {
         taken += temp_taken;
       }
     }
-    String message = "";
-    message += new DateTime.now().toString();
-    message += ",";
-    message += (empty/(taken+empty)).toString();
-    message += ",";
-    message += height.toString();
-    message += ";";
-    print(message);
+    
+    
     showHeight(temp_height);
     addToScore(getRowsScore(rows));
+    
+    Map<String, String> entry = new Map<String, String>();
+    entry['height'] = temp_height.toString();
+    entry['full'] = (taken / (taken + empty)).toString();
+    DateTime timestamp = new DateTime.now();
+    entry['timestamp'] = timestamp.toIso8601String(); 
+    entry['difficulty'] = difficultyIn.value;
+    
+    logs.add(entry);
   }
 
   void clearRow(int row) {
@@ -286,10 +328,11 @@ class Tetris {
   }
 
   Block generateBlock() {
-    String new_color = COLORS[currentColor % COLORS.length];
-    currentColor++;
+    //String new_color = COLORS[currentColor % COLORS.length];
+    //currentColor++;
 
     int shapeIndex = rng.nextInt(SHAPES.length);
+    String new_color = COLORS[shapeIndex];
     List<List<int>> nums = SHAPES[shapeIndex];
 
     Block b = Block.getBlockFromInts(nums, new_color);
@@ -351,7 +394,16 @@ class Tetris {
       }
     }
   }
+  
+  List<Map<String, String>> getLogs(){
+    return logs;
+  }
+  
+  void UpdateDifficulty(Event e) {
+    
+  }
 }
+
 
 class Brick {
   String color;

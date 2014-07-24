@@ -14,6 +14,10 @@
     </div>
     <div class="container" style="float:left;margin-left:8px;padding:20px;">
       <canvas id="show-next" width="200px" height="200px"></canvas>
+      <div style="text-align:center;margin-top:11px;">
+          <input type="range" id="diff-input" name="diff" min="1" style="float:left;padding:4px;" ></input>
+          <h1 id="difficulty" style="float:left;padding:4px;">0</h1>
+      </div>
       <div>
         <h2 style="float:left;padding:4px;">Score</h2>
         <h1 id="score-box" style="float:left;padding:4px;">0</h1>
@@ -22,8 +26,10 @@
         <h2 style="float:left;padding:4px;">Height</h2>
         <h1 id="height-box" style="float:left;padding:4px;">0</h1>
       </div>
-      <div>
-        <input id="filebutton" class="button" name="myFile" type="file">
+      <div style="text-align:center;margin-top:11px;">
+        <div class="button log">
+          <a class="download data" download="session.txt"><h2>Download log</h2></a>
+        </div>
       </div>
       <div style="text-align:center;margin-top:11px;">
         <div class="button start-over">
